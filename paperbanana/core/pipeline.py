@@ -558,6 +558,7 @@ class PaperBananaPipeline:
                 iteration=iter_index,
                 seed=self.settings.seed,
                 aspect_ratio=effective_ratio,
+                vector_format=self.settings.vector_format,
             )
             visualizer_seconds = time.perf_counter() - visualizer_start
             _emit_progress(
@@ -679,9 +680,26 @@ class PaperBananaPipeline:
         ext = "jpg" if output_format == "jpeg" else output_format
         final_output_path = str(self._run_dir / f"final_output.{ext}")
 
-        # Load and save in desired format (handles PNG→JPEG/WebP conversion)
         img = load_image(final_image)
         save_image(img, final_output_path, format=output_format)
+
+        vector_output_path: Optional[str] = None
+        vector_fmt = self.settings.vector_format
+        if vector_fmt:
+            last_image = Path(iterations[-1].image_path)
+            source_vector = last_image.with_suffix(f".{vector_fmt}")
+            if source_vector.exists():
+                import shutil
+
+                dest_vector = str(self._run_dir / f"final_output.{vector_fmt}")
+                shutil.copy2(str(source_vector), dest_vector)
+                vector_output_path = dest_vector
+                logger.info("Vector output saved", path=dest_vector)
+            else:
+                logger.warning(
+                    "Vector output not found for last iteration",
+                    expected=str(source_vector),
+                )
 
         total_seconds = time.perf_counter() - total_start
         logger.info(
@@ -696,7 +714,6 @@ class PaperBananaPipeline:
             iterations=len(iterations),
         )
 
-        # Build metadata
         metadata = RunMetadata(
             run_id=self.run_id,
             timestamp=datetime.datetime.now().isoformat(),
@@ -726,12 +743,15 @@ class PaperBananaPipeline:
             "external_enabled": self.settings.exemplar_retrieval_enabled,
             "external_candidate_ids": external_candidate_ids,
         }
+        if vector_output_path:
+            metadata_dict["vector_output_path"] = vector_output_path
 
         if self.settings.save_iterations:
             save_json(metadata_dict, self._run_dir / "metadata.json")
 
         output = GenerationOutput(
             image_path=final_output_path,
+            vector_output_path=vector_output_path,
             description=current_description,
             iterations=iterations,
             metadata=metadata_dict,
@@ -827,6 +847,7 @@ class PaperBananaPipeline:
                 iteration=iter_num,
                 seed=self.settings.seed,
                 aspect_ratio=resume_state.aspect_ratio,
+                vector_format=self.settings.vector_format,
             )
             visualizer_seconds = time.perf_counter() - visualizer_start
             _emit_progress(
@@ -944,7 +965,6 @@ class PaperBananaPipeline:
                 mode="continue",
             )
 
-        # Final output
         final_image = iterations[-1].image_path
         output_format = getattr(self.settings, "output_format", "png").lower()
         ext = "jpg" if output_format == "jpeg" else output_format
@@ -952,6 +972,19 @@ class PaperBananaPipeline:
 
         img = load_image(final_image)
         save_image(img, final_output_path, format=output_format)
+
+        vector_output_path_cont: Optional[str] = None
+        vector_fmt = self.settings.vector_format
+        if vector_fmt:
+            last_image = Path(iterations[-1].image_path)
+            source_vector = last_image.with_suffix(f".{vector_fmt}")
+            if source_vector.exists():
+                import shutil
+
+                dest_vector = str(run_dir / f"final_output.{vector_fmt}")
+                shutil.copy2(str(source_vector), dest_vector)
+                vector_output_path_cont = dest_vector
+                logger.info("Vector output saved", path=dest_vector)
 
         total_seconds = time.perf_counter() - total_start
         logger.info(
@@ -967,7 +1000,6 @@ class PaperBananaPipeline:
             new_iterations=len(iterations),
         )
 
-        # Update metadata
         metadata = RunMetadata(
             run_id=self.run_id,
             timestamp=datetime.datetime.now().isoformat(),
@@ -990,12 +1022,15 @@ class PaperBananaPipeline:
         metadata_dict["continued_from_iteration"] = start_iter
         if user_feedback:
             metadata_dict["user_feedback"] = user_feedback
+        if vector_output_path_cont:
+            metadata_dict["vector_output_path"] = vector_output_path_cont
 
         if self.settings.save_iterations:
             save_json(metadata_dict, run_dir / "metadata_continued.json")
 
         output = GenerationOutput(
             image_path=final_output_path,
+            vector_output_path=vector_output_path_cont,
             description=current_description,
             iterations=iterations,
             metadata=metadata_dict,

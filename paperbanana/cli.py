@@ -884,10 +884,18 @@ def plot(
         "--venue",
         help="Target venue style (neurips, icml, acl, ieee, custom)",
     ),
+    vector: Optional[str] = typer.Option(
+        None,
+        "--vector",
+        help="Also save a vector copy alongside the raster output (svg or pdf)",
+    ),
 ):
     """Generate a statistical plot from data."""
     if format not in ("png", "jpeg", "webp"):
         console.print(f"[red]Error: Format must be png, jpeg, or webp. Got: {format}[/red]")
+        raise typer.Exit(1)
+    if vector and vector.lower() not in ("svg", "pdf"):
+        console.print(f"[red]Error: --vector must be svg or pdf. Got: {vector}[/red]")
         raise typer.Exit(1)
     if venue and venue.lower() not in ("neurips", "icml", "acl", "ieee", "custom"):
         console.print(
@@ -926,6 +934,7 @@ def plot(
         vlm_provider=vlm_provider,
         refinement_iterations=iterations,
         output_format=format,
+        vector_format=vector.lower() if vector else None,
         optimize_inputs=optimize,
         auto_refine=auto,
         save_prompts=True if save_prompts is None else save_prompts,
@@ -957,6 +966,8 @@ def plot(
 
     result = asyncio.run(_run())
     console.print(f"\n[green]Done![/green] Plot saved to: [bold]{result.image_path}[/bold]")
+    if result.vector_output_path:
+        console.print(f"Vector output: [bold]{result.vector_output_path}[/bold]")
 
 
 @app.command()

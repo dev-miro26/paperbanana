@@ -10,6 +10,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 OutputFormat = Literal["png", "jpeg", "webp"]
+VectorFormat = Literal["svg", "pdf"]
 ExemplarRetrievalMode = Literal["external_only", "external_then_rerank"]
 Venue = Literal["neurips", "icml", "acl", "ieee", "custom"]
 
@@ -89,6 +90,7 @@ class Settings(BaseSettings):
     # Output settings
     output_dir: str = "outputs"
     output_format: OutputFormat = "png"
+    vector_format: Optional[VectorFormat] = None
     save_iterations: bool = True
     save_prompts: bool = True
 
@@ -157,6 +159,16 @@ class Settings(BaseSettings):
         v = str(v).lower()
         if v not in ("png", "jpeg", "webp"):
             raise ValueError(f"output_format must be png, jpeg, or webp. Got: {v}")
+        return v
+
+    @field_validator("vector_format", mode="before")
+    @classmethod
+    def validate_vector_format(cls, v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        v = str(v).lower()
+        if v not in ("svg", "pdf"):
+            raise ValueError(f"vector_format must be svg or pdf. Got: {v}")
         return v
 
     @field_validator("exemplar_retrieval_top_k")

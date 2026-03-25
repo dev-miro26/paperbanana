@@ -52,6 +52,7 @@ class VisualizerAgent(BaseAgent):
         iteration: int = 0,
         seed: Optional[int] = None,
         aspect_ratio: Optional[str] = None,
+        vector_format: Optional[str] = None,
     ) -> str:
         """Generate an image from a description.
 
@@ -63,13 +64,14 @@ class VisualizerAgent(BaseAgent):
             iteration: Current iteration number (for naming).
             seed: Random seed for reproducibility.
             aspect_ratio: Target aspect ratio (e.g., '16:9', '1:1').
+            vector_format: Optional vector format ('svg' or 'pdf') to save alongside raster.
 
         Returns:
             Path to the generated image.
         """
         if diagram_type == DiagramType.STATISTICAL_PLOT:
             return await self._generate_plot(
-                description, raw_data, output_path, iteration, aspect_ratio
+                description, raw_data, output_path, iteration, aspect_ratio, vector_format
             )
         else:
             return await self._generate_diagram(
@@ -138,16 +140,15 @@ class VisualizerAgent(BaseAgent):
         output_path: Optional[str],
         iteration: int,
         aspect_ratio: Optional[str] = None,
+        vector_format: Optional[str] = None,
     ) -> str:
         """Generate a statistical plot by generating and executing matplotlib code."""
-        # Build the description with raw data appended
         full_description = description
         if raw_data:
             import json
 
             full_description += f"\n\n## Raw Data\n```json\n{json.dumps(raw_data, indent=2)}\n```"
 
-        # Load and format the plot visualizer prompt template
         template = self.load_prompt("plot")
         code_prompt = self.format_prompt(
             template,
@@ -163,23 +164,19 @@ class VisualizerAgent(BaseAgent):
             max_tokens=4096,
         )
 
-        # Extract code from response
         code = self._extract_code(code_response)
 
         if output_path is None:
             output_path = str(self.output_dir / f"plot_iter_{iteration}.png")
 
-        # Save generated code for inspection / manual editing
         code_path = Path(output_path).with_suffix(".py")
         code_path.parent.mkdir(parents=True, exist_ok=True)
         code_path.write_text(code)
         logger.info("Plot code saved", path=str(code_path))
 
-        # Execute the code
-        success = self._execute_plot_code(code, output_path, aspect_ratio)
+        success = self._execute_plot_code(code, output_path, aspect_ratio, vector_format)
         if not success:
             logger.error("Plot code execution failed, using placeholder")
-            # Create a placeholder image
             placeholder = Image.new("RGB", (1024, 768), color=(255, 255, 255))
             save_image(placeholder, output_path)
 
@@ -205,26 +202,42 @@ class VisualizerAgent(BaseAgent):
         return response.strip()
 
     def _execute_plot_code(
-        self, code: str, output_path: str, aspect_ratio: Optional[str] = None
+        self,
+        code: str,
+        output_path: str,
+        aspect_ratio: Optional[str] = None,
+        vector_format: Optional[str] = None,
     ) -> bool:
         """Execute matplotlib code in a subprocess to generate a plot."""
-        # Strip any OUTPUT_PATH assignments from VLM-generated code so the
-        # injected value below is authoritative (the VLM is prompted to set
-        # OUTPUT_PATH itself, which would override the injected line).
         code = re.sub(r'^OUTPUT_PATH\s*=\s*["\'].*["\']\s*$', "", code, flags=re.MULTILINE)
+        code = re.sub(r'^VECTOR_PATH\s*=\s*["\'].*["\']\s*$', "", code, flags=re.MULTILINE)
 
-        # Inject the output path and figure size from aspect ratio
         figsize_line = ""
         if aspect_ratio:
             w, h = self._ratio_to_dimensions(aspect_ratio)
-            # Scale to reasonable matplotlib inches (assume 150 dpi)
             fig_w, fig_h = round(w / 150, 1), round(h / 150, 1)
             figsize_line = (
                 f"import matplotlib\nmatplotlib.rcParams['figure.figsize'] = [{fig_w}, {fig_h}]\n"
             )
-        full_code = f'OUTPUT_PATH = "{output_path}"\n{figsize_line}{code}'
 
-        # Ensure output directory exists
+        preamble = f'OUTPUT_PATH = "{output_path}"\n'
+        vector_path: Optional[str] = None
+        if vector_format:
+            vector_path = str(Path(output_path).with_suffix(f".{vector_format}"))
+            preamble += f'VECTOR_PATH = "{vector_path}"\n'
+
+        full_code = f"{preamble}{figsize_line}{code}"
+
+        if vector_format:
+            vector_save = (
+                "\n\nimport matplotlib.pyplot as _pb_plt\n"
+                "for _pb_fig_num in _pb_plt.get_fignums():\n"
+                "    _pb_fig = _pb_plt.figure(_pb_fig_num)\n"
+                f'    _pb_fig.savefig(VECTOR_PATH, format="{vector_format}", bbox_inches="tight")\n'
+                "    break\n"
+            )
+            full_code += vector_save
+
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -241,6 +254,8 @@ class VisualizerAgent(BaseAgent):
             if result.returncode != 0:
                 logger.error("Plot code error", stderr=result.stderr[:500])
                 return False
+            if vector_path and not Path(vector_path).exists():
+                logger.warning("Vector output was not created", path=vector_path)
             return Path(output_path).exists()
         except subprocess.TimeoutExpired:
             logger.error("Plot code timed out")

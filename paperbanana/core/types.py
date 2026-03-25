@@ -128,6 +128,9 @@ class GenerationOutput(BaseModel):
     """Output from the PaperBanana generation pipeline."""
 
     image_path: str = Field(description="Path to the final generated image")
+    vector_output_path: Optional[str] = Field(
+        default=None, description="Path to the vector format copy (SVG/PDF) if requested"
+    )
     description: str = Field(description="Final optimized description")
     iterations: list[IterationRecord] = Field(
         default_factory=list, description="History of refinement iterations"
