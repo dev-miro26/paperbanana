@@ -220,11 +220,11 @@ class VisualizerAgent(BaseAgent):
                 f"import matplotlib\nmatplotlib.rcParams['figure.figsize'] = [{fig_w}, {fig_h}]\n"
             )
 
-        preamble = f'OUTPUT_PATH = "{output_path}"\n'
+        preamble = f"OUTPUT_PATH = {repr(output_path)}\n"
         vector_path: Optional[str] = None
         if vector_format:
             vector_path = str(Path(output_path).with_suffix(f".{vector_format}"))
-            preamble += f'VECTOR_PATH = "{vector_path}"\n'
+            preamble += f"VECTOR_PATH = {repr(vector_path)}\n"
 
         full_code = f"{preamble}{figsize_line}{code}"
 

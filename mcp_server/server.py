@@ -165,6 +165,7 @@ async def generate_plot(
     aspect_ratio: str | None = None,
     optimize: bool = False,
     auto_refine: bool = False,
+    vector_format: str | None = None,
 ) -> Image:
     """Generate a publication-quality statistical plot from JSON data.
 
@@ -179,9 +180,12 @@ async def generate_plot(
             Set False to skip preprocessing for faster results.
         auto_refine: Let critic loop until satisfied (default True, max 30 iterations).
             Set False to use fixed iteration count for faster results.
+        vector_format: Produce a vector copy alongside the raster output.
+            Accepts 'svg' or 'pdf'. The vector file is saved next to the raster
+            output and its path is recorded in metadata.json. Default: None (no vector copy).
 
     Returns:
-        The generated plot as a PNG image.
+        The generated plot as a PNG image (vector copy saved to disk when requested).
     """
     raw_data = json.loads(data_json)
 
@@ -189,6 +193,7 @@ async def generate_plot(
         refinement_iterations=iterations,
         optimize_inputs=optimize,
         auto_refine=auto_refine,
+        vector_format=vector_format,
     )
 
     def _on_progress(event: str, payload: dict) -> None:
@@ -205,6 +210,8 @@ async def generate_plot(
     )
 
     result = await pipeline.generate(gen_input)
+    if result.vector_output_path:
+        logger.info("Vector output saved", path=result.vector_output_path)
     effective_path, fmt = _compress_for_api(result.image_path)
     return Image(path=effective_path, format=fmt)
 

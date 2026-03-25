@@ -68,6 +68,31 @@ def test_output_format_from_yaml_invalid():
         Path(path).unlink(missing_ok=True)
 
 
+def test_vector_format_default_is_none():
+    settings = Settings()
+    assert settings.vector_format is None
+
+
+def test_vector_format_accepts_svg():
+    settings = Settings(vector_format="svg")
+    assert settings.vector_format == "svg"
+
+
+def test_vector_format_accepts_pdf():
+    settings = Settings(vector_format="pdf")
+    assert settings.vector_format == "pdf"
+
+
+def test_vector_format_case_insensitive():
+    settings = Settings(vector_format="SVG")
+    assert settings.vector_format == "svg"
+
+
+def test_vector_format_invalid_rejected():
+    with pytest.raises(ValidationError, match="vector_format must be svg or pdf"):
+        Settings(vector_format="eps")
+
+
 def test_exemplar_retrieval_top_k_must_be_positive():
     """exemplar_retrieval_top_k must be >= 1."""
     with pytest.raises(ValidationError, match="exemplar_retrieval_top_k must be >= 1"):

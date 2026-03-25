@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from paperbanana.agents.visualizer import VisualizerAgent
 
 
@@ -50,3 +52,67 @@ def test_extract_code_handles_plain_code_response(tmp_path):
     response = "import matplotlib.pyplot as plt\nplt.figure()"
     code = agent._extract_code(response)
     assert code == response
+
+
+def test_execute_plot_code_produces_svg_vector_output(tmp_path):
+    agent = _make_agent(tmp_path)
+    output_path = str(tmp_path / "plot.png")
+    code = (
+        "import matplotlib.pyplot as plt\n"
+        "fig, ax = plt.subplots()\n"
+        "ax.plot([1, 2, 3], [4, 5, 6])\n"
+        "fig.savefig(OUTPUT_PATH)\n"
+    )
+    success = agent._execute_plot_code(code, output_path, vector_format="svg")
+    assert success
+    assert Path(output_path).exists()
+    assert (tmp_path / "plot.svg").exists()
+    assert (tmp_path / "plot.svg").stat().st_size > 0
+
+
+def test_execute_plot_code_produces_pdf_vector_output(tmp_path):
+    agent = _make_agent(tmp_path)
+    output_path = str(tmp_path / "plot.png")
+    code = (
+        "import matplotlib.pyplot as plt\n"
+        "fig, ax = plt.subplots()\n"
+        "ax.bar(['a', 'b'], [3, 7])\n"
+        "fig.savefig(OUTPUT_PATH)\n"
+    )
+    success = agent._execute_plot_code(code, output_path, vector_format="pdf")
+    assert success
+    assert Path(output_path).exists()
+    assert (tmp_path / "plot.pdf").exists()
+    assert (tmp_path / "plot.pdf").stat().st_size > 0
+
+
+def test_execute_plot_code_no_vector_when_not_requested(tmp_path):
+    agent = _make_agent(tmp_path)
+    output_path = str(tmp_path / "plot.png")
+    code = (
+        "import matplotlib.pyplot as plt\n"
+        "fig, ax = plt.subplots()\n"
+        "ax.plot([1, 2], [3, 4])\n"
+        "fig.savefig(OUTPUT_PATH)\n"
+    )
+    success = agent._execute_plot_code(code, output_path)
+    assert success
+    assert Path(output_path).exists()
+    assert not (tmp_path / "plot.svg").exists()
+    assert not (tmp_path / "plot.pdf").exists()
+
+
+def test_execute_plot_code_strips_vlm_vector_path_assignment(tmp_path):
+    agent = _make_agent(tmp_path)
+    output_path = str(tmp_path / "plot.png")
+    code = (
+        'VECTOR_PATH = "/tmp/hacked.svg"\n'
+        "import matplotlib.pyplot as plt\n"
+        "fig, ax = plt.subplots()\n"
+        "ax.plot([1, 2], [3, 4])\n"
+        "fig.savefig(OUTPUT_PATH)\n"
+    )
+    success = agent._execute_plot_code(code, output_path, vector_format="svg")
+    assert success
+    assert (tmp_path / "plot.svg").exists()
+    assert not Path("/tmp/hacked.svg").exists()
