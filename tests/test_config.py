@@ -68,6 +68,14 @@ def test_output_format_from_yaml_invalid():
         Path(path).unlink(missing_ok=True)
 
 
+def test_generate_caption_default_false():
+    assert Settings().generate_caption is False
+
+
+def test_generate_caption_true():
+    assert Settings(generate_caption=True).generate_caption is True
+
+
 def test_exemplar_retrieval_top_k_must_be_positive():
     """exemplar_retrieval_top_k must be >= 1."""
     with pytest.raises(ValidationError, match="exemplar_retrieval_top_k must be >= 1"):

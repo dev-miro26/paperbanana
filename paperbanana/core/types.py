@@ -129,6 +129,10 @@ class GenerationOutput(BaseModel):
 
     image_path: str = Field(description="Path to the final generated image")
     description: str = Field(description="Final optimized description")
+    generated_caption: Optional[str] = Field(
+        default=None,
+        description="Publication-style figure caption when generate_caption is enabled",
+    )
     iterations: list[IterationRecord] = Field(
         default_factory=list, description="History of refinement iterations"
     )

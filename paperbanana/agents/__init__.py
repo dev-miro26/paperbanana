@@ -1,6 +1,7 @@
 """Agent implementations for the PaperBanana pipeline."""
 
 from paperbanana.agents.base import BaseAgent
+from paperbanana.agents.caption import CaptionAgent
 from paperbanana.agents.critic import CriticAgent
 from paperbanana.agents.optimizer import InputOptimizerAgent
 from paperbanana.agents.planner import PlannerAgent
@@ -10,6 +11,7 @@ from paperbanana.agents.visualizer import VisualizerAgent
 
 __all__ = [
     "BaseAgent",
+    "CaptionAgent",
     "InputOptimizerAgent",
     "RetrieverAgent",
     "PlannerAgent",

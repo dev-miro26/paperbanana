@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, Optional
 
 import structlog
 
+from paperbanana.agents.caption import CaptionAgent
 from paperbanana.agents.critic import CriticAgent
 from paperbanana.agents.optimizer import InputOptimizerAgent
 from paperbanana.agents.planner import PlannerAgent
@@ -192,6 +193,9 @@ class PaperBananaPipeline:
             prompt_recorder=self._prompt_recorder,
         )
         self.critic = CriticAgent(
+            self._vlm, prompt_dir=prompt_dir, prompt_recorder=self._prompt_recorder
+        )
+        self.caption = CaptionAgent(
             self._vlm, prompt_dir=prompt_dir, prompt_recorder=self._prompt_recorder
         )
 
@@ -683,6 +687,24 @@ class PaperBananaPipeline:
         img = load_image(final_image)
         save_image(img, final_output_path, format=output_format)
 
+        generated_caption: Optional[str] = None
+        caption_seconds: Optional[float] = None
+        if self.settings.generate_caption:
+            caption_start = time.perf_counter()
+            last_critique = iterations[-1].critique
+            crit_text = last_critique.summary if last_critique else ""
+            try:
+                generated_caption = await self.caption.run(
+                    source_context=input.source_context,
+                    communicative_intent=input.communicative_intent,
+                    final_description=current_description,
+                    critique_summary=crit_text,
+                    diagram_type=input.diagram_type,
+                )
+            except Exception as e:
+                logger.warning("Caption generation failed", error=str(e))
+            caption_seconds = time.perf_counter() - caption_start
+
         total_seconds = time.perf_counter() - total_start
         logger.info(
             "Total generation time",
@@ -721,11 +743,15 @@ class PaperBananaPipeline:
             "styling_seconds": styling_seconds,
             "iterations": iteration_timings,
         }
+        if caption_seconds is not None:
+            metadata_dict["timing"]["caption_seconds"] = caption_seconds
         metadata_dict["retrieval"] = {
             "mode": retrieval_mode,
             "external_enabled": self.settings.exemplar_retrieval_enabled,
             "external_candidate_ids": external_candidate_ids,
         }
+        if self.settings.generate_caption:
+            metadata_dict["generated_caption"] = generated_caption
 
         if self.settings.save_iterations:
             save_json(metadata_dict, self._run_dir / "metadata.json")
@@ -733,6 +759,7 @@ class PaperBananaPipeline:
         output = GenerationOutput(
             image_path=final_output_path,
             description=current_description,
+            generated_caption=generated_caption,
             iterations=iterations,
             metadata=metadata_dict,
         )
@@ -953,6 +980,24 @@ class PaperBananaPipeline:
         img = load_image(final_image)
         save_image(img, final_output_path, format=output_format)
 
+        generated_caption: Optional[str] = None
+        caption_seconds: Optional[float] = None
+        if self.settings.generate_caption:
+            caption_start = time.perf_counter()
+            last_critique = iterations[-1].critique
+            crit_text = last_critique.summary if last_critique else ""
+            try:
+                generated_caption = await self.caption.run(
+                    source_context=resume_state.source_context,
+                    communicative_intent=resume_state.communicative_intent,
+                    final_description=current_description,
+                    critique_summary=crit_text,
+                    diagram_type=resume_state.diagram_type,
+                )
+            except Exception as e:
+                logger.warning("Caption generation failed", error=str(e))
+            caption_seconds = time.perf_counter() - caption_start
+
         total_seconds = time.perf_counter() - total_start
         logger.info(
             "Continue run complete",
@@ -987,9 +1032,13 @@ class PaperBananaPipeline:
             "continue_total_seconds": total_seconds,
             "iterations": iteration_timings,
         }
+        if caption_seconds is not None:
+            metadata_dict["timing"]["caption_seconds"] = caption_seconds
         metadata_dict["continued_from_iteration"] = start_iter
         if user_feedback:
             metadata_dict["user_feedback"] = user_feedback
+        if self.settings.generate_caption:
+            metadata_dict["generated_caption"] = generated_caption
 
         if self.settings.save_iterations:
             save_json(metadata_dict, run_dir / "metadata_continued.json")
@@ -997,6 +1046,7 @@ class PaperBananaPipeline:
         output = GenerationOutput(
             image_path=final_output_path,
             description=current_description,
+            generated_caption=generated_caption,
             iterations=iterations,
             metadata=metadata_dict,
         )

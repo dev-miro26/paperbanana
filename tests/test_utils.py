@@ -231,12 +231,11 @@ class TestCompressForApi:
         from mcp_server import server
         from mcp_server.server import _compress_for_api
 
-        # Set a very low limit so our test image exceeds it.
-        monkeypatch.setattr(server, "_MAX_IMAGE_BYTES", 100)
+        monkeypatch.setattr(server, "_MAX_IMAGE_BYTES", 400)
 
         p = tmp_path / "big.png"
         Image.new("RGB", (200, 200), color=(128, 64, 32)).save(p, format="PNG")
-        assert p.stat().st_size > 100
+        assert p.stat().st_size > 400
 
         path, fmt = _compress_for_api(str(p))
         assert fmt == "jpeg"

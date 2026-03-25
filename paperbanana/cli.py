@@ -190,6 +190,14 @@ def generate(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Show detailed agent progress and timing"
     ),
+    generate_caption: bool = typer.Option(
+        False,
+        "--generate-caption",
+        help=(
+            "After generation, run the caption agent for a publication-style figure caption "
+            "(extra API call)"
+        ),
+    ),
 ):
     """Generate a methodology diagram from a text description."""
     if format not in ("png", "jpeg", "webp"):
@@ -258,6 +266,8 @@ def generate(
         overrides["venue"] = venue
     if prompt_dir:
         overrides["prompt_dir"] = prompt_dir
+    if generate_caption:
+        overrides["generate_caption"] = True
 
     if config:
         settings = Settings.from_yaml(config, **overrides)
@@ -369,6 +379,8 @@ def generate(
         console.print(f"\n[green]Done![/green] Output saved to: [bold]{result.image_path}[/bold]")
         console.print(f"Run ID: {result.metadata.get('run_id', 'unknown')}")
         console.print(f"New iterations: {len(result.iterations)}")
+        if result.generated_caption:
+            console.print(f"Caption: [bold]{result.generated_caption}[/bold]")
         return
 
     # ── Normal generation mode ────────────────────────────────────
@@ -557,6 +569,8 @@ def generate(
     )
     console.print(f"  Output: [bold]{result.image_path}[/bold]")
     console.print(f"  Run ID: [dim]{result.metadata.get('run_id', 'unknown')}[/dim]")
+    if result.generated_caption:
+        console.print(f"  Caption: [bold]{result.generated_caption}[/bold]")
 
 
 @app.command()
@@ -884,6 +898,14 @@ def plot(
         "--venue",
         help="Target venue style (neurips, icml, acl, ieee, custom)",
     ),
+    generate_caption: bool = typer.Option(
+        False,
+        "--generate-caption",
+        help=(
+            "After generation, run the caption agent for a publication-style figure caption "
+            "(extra API call)"
+        ),
+    ),
 ):
     """Generate a statistical plot from data."""
     if format not in ("png", "jpeg", "webp"):
@@ -930,6 +952,7 @@ def plot(
         auto_refine=auto,
         save_prompts=True if save_prompts is None else save_prompts,
         venue=venue,
+        generate_caption=generate_caption,
     )
 
     gen_input = GenerationInput(
@@ -957,6 +980,8 @@ def plot(
 
     result = asyncio.run(_run())
     console.print(f"\n[green]Done![/green] Plot saved to: [bold]{result.image_path}[/bold]")
+    if result.generated_caption:
+        console.print(f"Caption: [bold]{result.generated_caption}[/bold]")
 
 
 @app.command()

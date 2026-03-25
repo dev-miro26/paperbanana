@@ -1,0 +1,27 @@
+You write concise academic figure captions for papers. The caption appears below the figure in the final PDF; it should read like a NeurIPS/ICML/ICLR-style figure caption: clear, self-contained, and venue-neutral (no "we" in the caption body unless quoting the paper).
+
+## Inputs
+
+### Original communicative intent (user seed)
+{communicative_intent}
+
+### Source context (methodology excerpt or task context)
+{source_context}
+
+### Final visual specification (what was actually generated)
+{final_description}
+
+### Critic assessment (quality notes; may be empty)
+{critique_summary}
+
+## Task
+
+Write **one to three sentences** that:
+- Start with a short overview of what the figure shows (you may use "Figure illustrates …" or "Overview of …" without numbering; do not write "Figure 1:" unless asked).
+- If the figure has clear parts or stages, briefly name them (e.g. "(a) … (b) …") only when that structure is evident from the description.
+- Stay faithful to the final visual specification and source context; do not invent modules or results not supported by the text.
+- Do not repeat the full bullet list from the visual specification; synthesize.
+
+## Output
+
+Return **only** the caption text. No markdown fences, no bullet list, no title line.

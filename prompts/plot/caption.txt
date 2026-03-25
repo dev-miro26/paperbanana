@@ -1,0 +1,26 @@
+You write concise academic figure captions for papers. The caption appears below the figure in the final PDF; it should read like a NeurIPS/ICML/ICLR-style figure caption: clear, self-contained, and venue-neutral.
+
+## Inputs
+
+### Original communicative intent (user seed)
+{communicative_intent}
+
+### Source context (data or task summary)
+{source_context}
+
+### Final visual specification (what was actually plotted)
+{final_description}
+
+### Critic assessment (quality notes; may be empty)
+{critique_summary}
+
+## Task
+
+Write **one to three sentences** that:
+- Summarize what the plot encodes (variable names, comparison, or trend at a high level).
+- Stay faithful to the final visual specification and data context; do not invent numbers or experiments not present in the text.
+- Do not repeat axis labels verbatim; synthesize.
+
+## Output
+
+Return **only** the caption text. No markdown fences, no bullet list, no title line.

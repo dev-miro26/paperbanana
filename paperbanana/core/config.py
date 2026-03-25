@@ -91,6 +91,7 @@ class Settings(BaseSettings):
     output_format: OutputFormat = "png"
     save_iterations: bool = True
     save_prompts: bool = True
+    generate_caption: bool = False
 
     # Prompt settings
     prompt_dir: Optional[str] = None
@@ -237,6 +238,7 @@ def _flatten_yaml(config: dict, prefix: str = "") -> dict:
         "output.format": "output_format",
         "output.save_iterations": "save_iterations",
         "output.save_prompts": "save_prompts",
+        "output.generate_caption": "generate_caption",
         "pipeline.prompt_dir": "prompt_dir",
     }
 
